@@ -16,7 +16,7 @@ find . -name "*.nmon" -type f -delete
 sudo rm -rf "/tmp/cdp/$1/"              #Delete the existing log directories
 mkdir -p "/tmp/cdp/$1/"                 #Create new log directories
 
- 
+sudo apt install libtbb-dev libomp-13-dev
 
 #start nmon service
 nmon -f -s 30 -c 20 2>&1  | tee -a $nmon_log
