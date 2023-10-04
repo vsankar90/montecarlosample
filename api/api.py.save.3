@@ -1,0 +1,64 @@
+import traceback
+from flask import Flask,request,Response,make_response,jsonify
+import os
+from pexpect import pxssh
+
+from flask_cors import CORS , cross_origin
+import pathlib
+from os.path import abspath
+import os.path, time
+import datetime
+
+#import requests
+import logging
+
+app = Flask(__name__)
+CORS(app)
+
+
+@app.errorhandler(500)
+def handle_500_error(_error):
+    """Return http 500 status code"""
+    return make_response(jsonify({'error' : 'Internal Server Error'}),500)
+
+
+@app.errorhandler(404)
+def handle_404_error(_error):
+    """Return http 404 status code"""
+    return make_response(jsonify({'error' : 'The requested URL was not found on the server'}),404)
+
+
+@app.route('/testcase/start', methods=['POST'])
+def callshellscript():
+    try:
+        jsondata = request.get_json()
+        app.logger.info(jsondata)
+        s = pxssh.pxssh(timeout=300);
+        app.logger.info("trying to login..")
+        s.login('cdp-mc-svm', 'ubuntu')
+        app.logger.info("login successful. executing command: mkdir -p /mnt/cdp/"+jsondata["testName"])
+	s.sendline("pwd")
+	s.prompt()
+	print(s.before)
+        s.sendline("./test_runner.sh "+jsondata["testName"]+ " " +jsondata["nThreads"]+" "+jsondata["nOptions"]+ " "+jsondata["pathLength"]+" "+ jsondata["testBlockLength"])
+	s.prompt()
+        app.logger.info("command executed successfully.. trying to print output")
+        app.logger.info(s.before.decode('utf-8', 'ignore'))
+        s.logout()
+        app.logger.info("logged out successully")
+        return Response("{'message':'Tests triggered successfully'}", status=200, mimetype='application/json')
+    except Exception as e:
+        traceback.print_exc()
+        return Response("{'message':"+str(e)+"}", status=500, mimetype='application/json')
+
+
+
+
+@app.route('/testcase/list', methods=['GET'])
+@cross_origin()
+def get_data():
+    try:
+        testcases  = [name for name in os.listdir("/mnt/cdp/") if os.path.isdir("/mnt/cdp/"+name)]
+        return jsonify({"data": testcases})
+    except Exception as e:
+        return str(e)
